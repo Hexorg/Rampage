@@ -1,0 +1,48 @@
+!_TAG_FILE_FORMAT	2	/extended format; --format=1 will not append ;" to lines/
+!_TAG_FILE_SORTED	1	/0=unsorted, 1=sorted, 2=foldcase/
+!_TAG_PROGRAM_AUTHOR	Darren Hiebert	/dhiebert@users.sourceforge.net/
+!_TAG_PROGRAM_NAME	Exuberant Ctags	//
+!_TAG_PROGRAM_URL	http://ctags.sourceforge.net	/official site/
+!_TAG_PROGRAM_VERSION	5.8	//
+ProcMap	ProcMaps.cpp	/^	ProcMap::ProcMap(unsigned short pid) {$/;"	f	class:System::ProcMap	signature:(unsigned short pid)
+ProcMapEntry	ProcMaps.h	/^struct ProcMapEntry {$/;"	s	namespace:System
+ProcMaps	ProcMaps.h	/^		ProcMaps(unsigned short pid);$/;"	p	class:System::ProcMaps	access:public	signature:(unsigned short pid)
+ProcMaps	ProcMaps.h	/^class ProcMaps {$/;"	c	namespace:System
+System	ProcMaps.cpp	/^namespace System {$/;"	n	file:
+System	ProcMaps.h	/^namespace System {$/;"	n
+System::ProcMap::ProcMap	ProcMaps.cpp	/^	ProcMap::ProcMap(unsigned short pid) {$/;"	f	class:System::ProcMap	signature:(unsigned short pid)
+System::ProcMap::~ProcMap	ProcMaps.cpp	/^	ProcMap::~ProcMap() {  }$/;"	f	class:System::ProcMap	signature:()
+System::ProcMapEntry	ProcMaps.h	/^struct ProcMapEntry {$/;"	s	namespace:System
+System::ProcMapEntry::dev_major	ProcMaps.h	/^	unsigned char dev_major;$/;"	m	struct:System::ProcMapEntry	access:public
+System::ProcMapEntry::dev_minor	ProcMaps.h	/^	unsigned char dev_minor;$/;"	m	struct:System::ProcMapEntry	access:public
+System::ProcMapEntry::end	ProcMaps.h	/^	unsigned long end;$/;"	m	struct:System::ProcMapEntry	access:public
+System::ProcMapEntry::inode	ProcMaps.h	/^	unsigned int inode;$/;"	m	struct:System::ProcMapEntry	access:public
+System::ProcMapEntry::offset	ProcMaps.h	/^	unsigned long offset;$/;"	m	struct:System::ProcMapEntry	access:public
+System::ProcMapEntry::pathname	ProcMaps.h	/^	std::string pathname;$/;"	m	struct:System::ProcMapEntry	access:public
+System::ProcMapEntry::perms	ProcMaps.h	/^	unsigned char perms;$/;"	m	struct:System::ProcMapEntry	access:public
+System::ProcMapEntry::start	ProcMaps.h	/^	unsigned long start;$/;"	m	struct:System::ProcMapEntry	access:public
+System::ProcMaps	ProcMaps.h	/^class ProcMaps {$/;"	c	namespace:System
+System::ProcMaps::ProcMaps	ProcMaps.h	/^		ProcMaps(unsigned short pid);$/;"	p	class:System::ProcMaps	access:public	signature:(unsigned short pid)
+System::ProcMaps::entryList	ProcMaps.h	/^		std::vector<struct ProcMapEntry> entryList;$/;"	m	class:System::ProcMaps	access:private
+System::ProcMaps::getEntry	ProcMaps.h	/^		const struct ProcMapEntry *getEntry(unsigned int id) const;$/;"	p	class:System::ProcMaps	access:public	signature:(unsigned int id) const
+System::ProcMaps::getLibraryEntries	ProcMaps.h	/^		std::vector<struct ProcMapEntry> getLibraryEntries() const;$/;"	p	class:System::ProcMaps	access:public	signature:() const
+System::ProcMaps::getNonLibraryEntries	ProcMaps.h	/^		std::vector<struct ProcMapEntry> getNonLibraryEntries() const;$/;"	p	class:System::ProcMaps	access:public	signature:() const
+System::ProcMaps::~ProcMaps	ProcMaps.h	/^		~ProcMaps();$/;"	p	class:System::ProcMaps	access:public	signature:()
+__PROCMAPS_H__	ProcMaps.h	2;"	d
+dev_major	ProcMaps.h	/^	unsigned char dev_major;$/;"	m	struct:System::ProcMapEntry	access:public
+dev_minor	ProcMaps.h	/^	unsigned char dev_minor;$/;"	m	struct:System::ProcMapEntry	access:public
+end	ProcMaps.h	/^	unsigned long end;$/;"	m	struct:System::ProcMapEntry	access:public
+endl	Rampage.cpp	/^	std::cout << "Accessing a page of RAM... [OK]" << std::endl;$/;"	m	class:std	file:
+entryList	ProcMaps.h	/^		std::vector<struct ProcMapEntry> entryList;$/;"	m	class:System::ProcMaps	access:private
+getEntry	ProcMaps.h	/^		const struct ProcMapEntry *getEntry(unsigned int id) const;$/;"	p	class:System::ProcMaps	access:public	signature:(unsigned int id) const
+getLibraryEntries	ProcMaps.h	/^		std::vector<struct ProcMapEntry> getLibraryEntries() const;$/;"	p	class:System::ProcMaps	access:public	signature:() const
+getNonLibraryEntries	ProcMaps.h	/^		std::vector<struct ProcMapEntry> getNonLibraryEntries() const;$/;"	p	class:System::ProcMaps	access:public	signature:() const
+inode	ProcMaps.h	/^	unsigned int inode;$/;"	m	struct:System::ProcMapEntry	access:public
+main	Rampage.cpp	/^int main(int argc, char *argv[]) {$/;"	f	signature:(int argc, char *argv[])
+offset	ProcMaps.h	/^	unsigned long offset;$/;"	m	struct:System::ProcMapEntry	access:public
+pathname	ProcMaps.h	/^	std::string pathname;$/;"	m	struct:System::ProcMapEntry	access:public
+perms	ProcMaps.h	/^	unsigned char perms;$/;"	m	struct:System::ProcMapEntry	access:public
+start	ProcMaps.h	/^	unsigned long start;$/;"	m	struct:System::ProcMapEntry	access:public
+std::endl	Rampage.cpp	/^	std::cout << "Accessing a page of RAM... [OK]" << std::endl;$/;"	m	class:std	file:
+~ProcMap	ProcMaps.cpp	/^	ProcMap::~ProcMap() {  }$/;"	f	class:System::ProcMap	signature:()
+~ProcMaps	ProcMaps.h	/^		~ProcMaps();$/;"	p	class:System::ProcMaps	access:public	signature:()

@@ -1,4 +1,4 @@
-CPPFLAGS = -O2
+CPPFLAGS = -O0 -g
 
 CC = g++
 
@@ -6,7 +6,7 @@ BUILD_DIR = build
 OBJ_DIR = $(BUILD_DIR)/obj
 SRC_DIR = src
 
-SOURCES = $(shell find $(SRC_DIR)/ -type f -name '*.cpp')
+SOURCES = $(wildcard $(SRC_DIR)/*.cpp)
 OBJECTS = $(addprefix $(OBJ_DIR)/, $(notdir $(SOURCES:.cpp=.o)))
 
 all: prep build
@@ -18,7 +18,7 @@ prep:
 build:	$(BUILD_DIR)/Rampage
 
 $(BUILD_DIR)/Rampage: $(OBJECTS)
-	$(CC) $(CPPFLAGS) $< -o $@
+	$(CC) $(CPPFLAGS) $^ -o $@
 
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.cpp
 	$(CC) -c $(CPPFLAGS) $< -o $@
