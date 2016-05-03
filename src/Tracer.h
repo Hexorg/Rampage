@@ -5,10 +5,14 @@
 
 namespace System {
 
+#define NULL 0
+
 class TracerException: public std::exception {
-	const char* what() const throw() {
-		return "Tracer Exception";
-	}
+public:
+	TracerException(const char *error);
+	const char* what() const throw();
+private:
+	const char *error;
 };
 
 class Tracer {
