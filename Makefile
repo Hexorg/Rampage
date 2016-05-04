@@ -15,10 +15,13 @@ prep:
 	mkdir -p $(BUILD_DIR)
 	mkdir -p $(OBJ_DIR)
 
-build:	$(BUILD_DIR)/Rampage
+build: $(BUILD_DIR)/Rampage TestApp
 
 $(BUILD_DIR)/Rampage: $(OBJECTS)
 	$(CC) $(CPPFLAGS) $^ -o $@
 
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.cpp
 	$(CC) -c $(CPPFLAGS) $< -o $@
+
+TestApp: TestApp.c
+	gcc TestApp.c -o TestApp
