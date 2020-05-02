@@ -4,3 +4,6 @@ build/
 *.swp
 # ignore the TestApp
 TestApp
+venv
+.vscode
+*.pyc
