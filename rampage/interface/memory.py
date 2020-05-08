@@ -1,5 +1,6 @@
 from enum import Enum
 import bisect
+import re
 from signal import SIGTRAP, SIGSTOP
 class Permission(Enum):
     PRIVATE = 'p'
@@ -90,30 +91,51 @@ class MemoryMap:
 
     def __init__(self):
         self.__segments__ = []
+        self.__ignore_paths__ = re.compile(r'/dev/.*|/memfd.*|\[vvar\]|\[vsyscall\]')
+        self.__ignore_without_permissions__ = set([Permission.WRITE])
     
     def __len__(self):
-        return len(self.__segments__)
+        return len(self.segments)
     
     def add(self, segment):
         self.__segments__.append(segment)
     
     def size(self):
-        return sum([len(s) for s in self.__segments__])
+        return sum([len(s) for s in self.segments])
     
     def add_debugger(self, ptrace):
-        for segment in self.__segments__:
+        for segment in self.segments:
             segment.__ptrace__ = ptrace
     
     def get(self, address):
-        index = bisect.bisect_left(self.__segments__, address)
-        entry = self.__segments__[index]
-        if address in entry:
-            return entry
+        if isinstance(address, str):
+            for segment in self.segments:
+                if address == segment.path:
+                    return segment    
         else:
-            raise IndexError("Given address is not mapped by this memory map")
+            index = bisect.bisect_left(self.__segments__, address)
+            entry = self.__segments__[index]
+            if address in entry:
+                return entry
+            
+        raise IndexError("Given address is not mapped by this memory map")
     
     @property
     def segments(self):
-        return self.__segments__
+        result = []
+        for segment in self.__segments__:
+            if self.__ignore_paths__.match(segment.path):
+                continue
+            # if segment.dev_major == 0 and segment.dev_minor == 0:
+            #     continue
+            is_ignore = False
+            for ignored_permission in self.__ignore_without_permissions__:
+                if ignored_permission not in segment.permissions:
+                    is_ignore = True
+                    break
+            if is_ignore:
+                continue
+            result.append(segment)
+        return result
     
 

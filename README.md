@@ -3,12 +3,12 @@ Linux memory scanner/editor written in python. Similar to scanmem, artmoney, or 
 
 ## Installing
 
-Depends on python-ptrace and the custom scanning library written in C - see cscan folder.
+Depends on `python-ptrace`, `hurry.filesizeand` the custom scanning library written in C - see cscan folder. Though if you don't want isntalling `hurry.filesizeand` you can remove it from process.py - it's only used for pretty printing.
 
 1. Install python-ptrace
 
     ```
-    pip install python-ptrace
+    pip install python-ptrace hurry.filesizeand
     ```
 
 2. Install cscan
