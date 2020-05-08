@@ -1,5 +1,5 @@
 # ignore the build dir
-build/
+**/build/**
 # ignore vim swap files
 *.swp
 # ignore the TestApp

@@ -15,7 +15,8 @@ int main(int argc, char* argv[], char* envp[]) {
 		} else {
 			is_first_time = 0;
 		}
-		printf(" Value is %u\n", variable);
+		printf(" Value is %u", variable);
+		fflush(stdout);
 		getchar();
 	}
 	return 0;

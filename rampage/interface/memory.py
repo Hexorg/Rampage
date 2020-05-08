@@ -1,6 +1,6 @@
 from enum import Enum
 import bisect
-
+from signal import SIGTRAP, SIGSTOP
 class Permission(Enum):
     PRIVATE = 'p'
     EXECUTE = 'x'
@@ -45,10 +45,23 @@ class MemorySegment:
             return self.start < other < self.end
     
     def __repr__(self):
-        if self.path.strip():
+        if self.path:
             return f"<{self.__class__.__name__} {self.path}>"
         else:
             return f"<{self.__class__.__name__} {hex(self.start)}-{hex(self.end)}>"
+    
+    def readBytes(self, offset, size):
+        return self.__ptrace__.readBytes(self.start + offset, size)
+    
+    def writeBytes(self, offset, data, isContinue=True):
+        if not self.__ptrace__.is_stopped:
+            self.__ptrace__.kill(SIGTRAP)
+            self.__ptrace__.waitSignals(SIGTRAP)
+            self.__ptrace__.is_stopped = True
+        result = self.__ptrace__.writeBytes(self.start + offset, data)
+        if isContinue:
+            self.__ptrace__.cont()
+        return result
 
 class MemoryMap:
     @classmethod
@@ -70,7 +83,7 @@ class MemoryMap:
                 entry.dev_major = int(item1, 10)
                 entry.dev_minor = int(item2, 10)
                 entry.inode = int(data[4], 10)
-                entry.path = ' '.join(data[5:])
+                entry.path = (' '.join(data[5:])).strip()
                 m.add(entry)
             return m
             
@@ -83,6 +96,13 @@ class MemoryMap:
     
     def add(self, segment):
         self.__segments__.append(segment)
+    
+    def size(self):
+        return sum([len(s) for s in self.__segments__])
+    
+    def add_debugger(self, ptrace):
+        for segment in self.__segments__:
+            segment.__ptrace__ = ptrace
     
     def get(self, address):
         index = bisect.bisect_left(self.__segments__, address)
