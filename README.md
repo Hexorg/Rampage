@@ -7,23 +7,30 @@ Depends on python-ptrace and the custom scanning library written in C - see csca
 
 1. Install python-ptrace
 
+    ```
     pip install python-ptrace
+    ```
 
 2. Install cscan
 
+    ```
     cd cscan
     python setup.py install
+    ```
 
 3. (Optional) compile the demo app
 
+    ```
     cd demo
     make
+    ```
 
 ## Usage
 
 Launch a program you want to scan, find its pid and figure out what value you want to edit. The demo program conviniently provides all of the above. The demo program will exit if it detects the value being changed to 0xDEADBEEF.
 
 ```
+>>> from rampage.interface.process import Process
 >>> p = Process(pid)
 >>> p.attach()
 >>> p.scan(12)
