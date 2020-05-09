@@ -22,15 +22,10 @@ class Process:
         self.__ptrace__.cont()
     
     def get_matches(self):
-        print("get_matches()")
         result = Matches()
-        print("entering loop")
         for segment in self.__memory_map__.segments:
-            print("in a loop")
             if hasattr(segment, '__matches__') and len(segment.__matches__) > 0:
-                print(f"Segment {segment} has matches")
                 for offset, types in segment.__matches__.items():
-                    print(f"adding offset {hex(offset)}")
                     result.append(MemoryMatch(segment, offset, types, self.__last_scan_value__))
         return result
 
@@ -40,7 +35,7 @@ class Process:
                 delattr(segment, '__matches__')
 
     
-    def scan(self, value, memorySegments=None, search_types=['@c', '@B', '@h', '@H', '@i', '@I', '@l', '@L', 'f', 'd']):
+    def scan(self, value, memorySegments=None, search_types=['@c', '@B', '@h', '@H', '@i', '@I', '@l', '@L'], alignment=4):
         if memorySegments is None:
             memorySegments = self.__memory_map__.segments
         
@@ -53,9 +48,9 @@ class Process:
 
         match_count = 0
         bytes_scanned = 0
+        has_printed = False
         start_time = time.clock()
         for i, segment in enumerate(memorySegments):
-
             try:
                 data = self.__ptrace__.readBytes(segment.start, len(segment))
             except Exception as e:
@@ -73,11 +68,13 @@ class Process:
                     # \r\033[K - return carriage and clear the line
                     print(f"\r\033[K{i+1}/{len(memorySegments)}: Searching {segment} ... {match_count} matches {humansize(speed, system=self.shs)}/s", end='')
                     sys.stdout.flush()
-                segment.__matches__ = cscan.scan(data, values)
+                    has_printed = True
+                segment.__matches__ = cscan.scan(data, values, alignment)
                 bytes_scanned += len(segment)
             match_count += len(segment.__matches__)
-            
-        print()
+        
+        if has_printed:
+            print()
         
         self.__last_scan_value__ = value
         return match_count

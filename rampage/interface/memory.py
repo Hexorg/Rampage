@@ -51,6 +51,10 @@ class MemorySegment:
         else:
             return f"<{self.__class__.__name__} {hex(self.start)}-{hex(self.end)}>"
     
+    @property
+    def info(self):
+        return f"Segment:\n  {hex(self.start)}-{hex(self.end)}\n  {self.permissions}\n  Offset: {hex(self.offset)}\n  Device {self.dev_major}:{self.dev_minor}\n  Inode: {self.inode}\n  {self.path}"
+    
     def readBytes(self, offset, size):
         return self.__ptrace__.readBytes(self.start + offset, size)
     

@@ -24,6 +24,14 @@ class MemoryMatch:
             return f"<Match {hex(self.__segment__.start + self.__offset__)} {self.__typematch__} in {self.__segment__}>"
         else:
             return f"<Match {hex(self.__segment__.start + self.__offset__)} - {self.lastValue} in {self.__segment__}>"
+    
+    @property
+    def type(self):
+        return self.__typematch__
+    
+    @property
+    def segment(self):
+        return self.__segment__
 
     def update(self):
         fmt = list(self.__typematch__)[0]

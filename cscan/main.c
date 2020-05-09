@@ -17,29 +17,32 @@ PyObject *matchbufferToDict(int *matchbuffer, int size, Py_ssize_t typeCount, Py
     return result;
 }
 
-PyObject *scan(const char *buffer, int BUFFLEN, PyObject *dict) {
+PyObject *scan(const char *buffer, int BUFFLEN, unsigned char alignment, PyObject *dict) {
     // expecting values of dict to only ever be PyBytes
     Py_ssize_t ppos, T;
     PyObject *pkey,*pvalue;
     const Py_ssize_t typeCount = PyDict_Size(dict);
     int isMatches[typeCount];
     PyObject *allKeys[typeCount];
+    int value_lengths[typeCount];
     int isMatched;
-    int *matchbuffer = malloc(BUFFLEN * (typeCount+1)) ;
+    int *matchbuffer = malloc(sizeof(int) * BUFFLEN * (typeCount+1)) ;
     int matchbufferpos = 0;
 
     ppos = 0;
     T = 0;
     while(PyDict_Next(dict, &ppos, &pkey, &pvalue)) {
-        allKeys[T++] = pkey;
+        allKeys[T] = pkey;
+        value_lengths[T] = PyBytes_Size(pvalue);
+        T++;
     }
-    for (int offset=0; offset<BUFFLEN; offset++) {
+    for (int offset=0; offset<BUFFLEN; offset += alignment) {
         isMatched = 0;
         T = 0;
         ppos = 0;
         while(PyDict_Next(dict, &ppos, &pkey, &pvalue)) {
             const char *value = PyBytes_AsString(pvalue);
-            switch(PyBytes_Size(pvalue)) {
+            switch(value_lengths[T]) {
                 case 1: isMatches[T] = *(buffer+offset) == *value; break;
                 case 2: isMatches[T] = *((short* ) (buffer+offset)) == *(short *) value; break;
                 case 4: isMatches[T] = *((int* ) (buffer+offset)) == *(int *) value; break;
@@ -66,7 +69,8 @@ static PyObject *start_scan(PyObject *self, PyObject *args) {
     const char *buffer; // s#
     int buffer_length;
     PyObject *type_value_dict; // O!
-    if (!PyArg_ParseTuple(args, "s#O!", &buffer, &buffer_length, &PyDict_Type, &type_value_dict)) {
+    unsigned char alignment; // B
+    if (!PyArg_ParseTuple(args, "s#O!B", &buffer, &buffer_length, &PyDict_Type, &type_value_dict, &alignment)) {
         return NULL;
     }
     Py_ssize_t ppos = 0;
@@ -77,7 +81,7 @@ static PyObject *start_scan(PyObject *self, PyObject *args) {
             return NULL;
         }
     }
-    return scan(buffer, buffer_length, type_value_dict);
+    return scan(buffer, buffer_length, alignment, type_value_dict);
 }
 
 PyObject *filter(const char *buffer, int BUFFLEN, PyObject *typeValues, PyObject *matches) {
@@ -85,15 +89,18 @@ PyObject *filter(const char *buffer, int BUFFLEN, PyObject *typeValues, PyObject
     PyObject *poffset, *pmatchtypeset, *ptype, *pvalue;
     const Py_ssize_t typeCount = PyDict_Size(typeValues);
     int isMatches[typeCount];
-    int isMatched;
+    int value_lengths[typeCount];
     PyObject *allKeys[typeCount];
-    int *matchbuffer = malloc(PyDict_Size(matches) * (typeCount+1)) ;
+    int isMatched;
+    int *matchbuffer = malloc(sizeof(int) * PyDict_Size(matches) * (typeCount+1)) ;
     int matchbufferpos = 0;
 
     ptypepos = 0;
     T = 0;
     while(PyDict_Next(typeValues, &ptypepos, &ptype, &pvalue)) {
-        allKeys[T++] = ptype;
+        allKeys[T] = ptype;
+        value_lengths[T] = PyBytes_Size(pvalue);
+        T++;
     }
     pmatchpos = 0;
     while(PyDict_Next(matches, &pmatchpos, &poffset, &pmatchtypeset)) {
@@ -104,7 +111,7 @@ PyObject *filter(const char *buffer, int BUFFLEN, PyObject *typeValues, PyObject
         while(PyDict_Next(typeValues, &ptypepos, &ptype, &pvalue)) {
             if (PySet_Contains(pmatchtypeset, ptype)) {
                 const char *value = PyBytes_AsString(pvalue);
-                switch(PyBytes_Size(pvalue)) {
+                switch(value_lengths[T]) {
                     case 1: isMatches[T] = *(buffer+offset) == *value; break;
                     case 2: isMatches[T] = *((short* ) (buffer+offset)) == *(short *) value; break;
                     case 4: isMatches[T] = *((int* ) (buffer+offset)) == *(int *) value; break;
@@ -112,8 +119,8 @@ PyObject *filter(const char *buffer, int BUFFLEN, PyObject *typeValues, PyObject
                     default: PyErr_SetString(ScanError, "Dictionary values must be 1, 2, 4, or 8 bytes long"); return NULL;
                 }
                 isMatched |= isMatches[T];
-                T++;
             }
+            T++;
         }
         if (unlikely(isMatched)) {
             for (Py_ssize_t i=0; i<typeCount; i++) {
