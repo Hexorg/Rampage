@@ -111,18 +111,17 @@ class MemoryMap:
         for segment in self.segments:
             segment.__ptrace__ = ptrace
     
-    def get(self, address):
-        if isinstance(address, str):
+    def find(self, addressOrPath):
+        if isinstance(addressOrPath, str):
             for segment in self.segments:
-                if address == segment.path:
+                if addressOrPath == segment.path:
                     return segment    
         else:
-            index = bisect.bisect_left(self.__segments__, address)
+            index = bisect.bisect_left(self.__segments__, addressOrPath)
             entry = self.__segments__[index]
-            if address in entry:
+            if addressOrPath in entry:
                 return entry
-            
-        raise IndexError("Given address is not mapped by this memory map")
+        return None
     
     @property
     def segments(self):

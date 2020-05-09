@@ -15,29 +15,46 @@ class Process:
     
     def attach(self):
         self.__memory_map__ = MemoryMap.fromFile(f"/proc/{self.__pid__}/maps")
-        print(f"Process has {humansize(self.__memory_map__.size(), system=self.shs)} of scannable memory")
+        print(f"Process has {humansize(self.map.size(), system=self.shs)} of scannable memory")
         debugger = ptrace.debugger.PtraceDebugger()
         self.__ptrace__ = debugger.addProcess(self.__pid__, False)
-        self.__memory_map__.add_debugger(self.__ptrace__)
+        self.map.add_debugger(self.__ptrace__)
         self.__ptrace__.cont()
     
     def get_matches(self):
         result = Matches()
-        for segment in self.__memory_map__.segments:
+        for segment in self.map.segments:
             if hasattr(segment, '__matches__') and len(segment.__matches__) > 0:
                 for offset, types in segment.__matches__.items():
                     result.append(MemoryMatch(segment, offset, types, self.__last_scan_value__))
         return result
 
     def reset(self):
-        for segment in memorySegments:
+        for segment in self.map.segments:
             if hasattr(segment, '__matches__'):
                 delattr(segment, '__matches__')
 
     
-    def scan(self, value, memorySegments=None, search_types=['@c', '@B', '@h', '@H', '@i', '@I', '@l', '@L'], alignment=4):
+    def scan(self, value, memorySegments=None, search_types=['@c', '@B', '@h', '@H', '@i', '@I', '@l', '@L', 'f', 'd'], alignment=4):
+        """Scan memory segemets for value of the search_type specified.
+        Search only for values aligned to alignment byte boundary.
+
+        Keyword arguments:
+        value -- the value to be searched, can be anything as long as it can be expressed 
+                    as one of the search_types
+        memorySegments -- list of MemorySegment objects to search, or None to use all
+                    writable memory. Segments must actually be mapped by this process.
+                    Useful if you know that your value is likely in a certain segment
+                    (e.g. heap). Use `Process.map.find(addressOrPath)` or manually sift
+                    through `Process.map.segments` to build this list.
+        search_types -- list of raw types to search. Any value usable by struct can be used. 
+                    See https://docs.python.org/3.6/library/struct.html
+        alignment -- only search byte aligned values. Increases search speed by this factor, but 
+                    has a chance to miss values in some programs
+
+        """
         if memorySegments is None:
-            memorySegments = self.__memory_map__.segments
+            memorySegments = self.map.segments
         
         values = {}
         for fmt in search_types:
@@ -84,5 +101,5 @@ class Process:
 
     
     @property
-    def maps(self):
+    def map(self):
         return self.__memory_map__
