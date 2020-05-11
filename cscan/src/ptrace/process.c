@@ -17,8 +17,8 @@
 #define WAIT_FOR_SIGNAL(process, signal) do { int status; do { status=Process_wait((process), 1); } while (!WIFSTOPPED(status) && !(WSTOPSIG(status) & (signal))); } while(0)
 
 void onStatusChange(Process_t *process, int status);
-char *readMemFile(Process_t *process, void *address, size_t size);
-char *readWithPtrace(Process_t *process, void *address, size_t size);
+uint8_t *readMemFile(Process_t *process, void *address, size_t size);
+uint8_t *readWithPtrace(Process_t *process, void *address, size_t size);
 void benchmarkMemFileVSPtrace(Process_t *process, void *address, size_t size);
 
 
@@ -49,8 +49,8 @@ void onStatusChange(Process_t *process, int status) {
     }
 }
 
-char *readMemFile(Process_t *process, void *address, size_t size) {
-    char *buffer = malloc(size);
+uint8_t *readMemFile(Process_t *process, void *address, size_t size) {
+    uint8_t *buffer = malloc(size);
     if (fseek(process->mem, (long int) address, SEEK_SET) != 0) {
         printf("%s:%d %s(): Faliure while reading %d's memory", __FILE__, __LINE__, __func__, process->pid);
         if (ferror(process->mem)) {
@@ -65,11 +65,11 @@ char *readMemFile(Process_t *process, void *address, size_t size) {
     return buffer;
 }
 
-char *readWithPtrace(Process_t *process, void *address, size_t size) {
-    char *buffer = malloc(size);
+uint8_t *readWithPtrace(Process_t *process, void *address, size_t size) {
+    uint8_t *buffer = malloc(size);
     const int word_len = sizeof(void *);
     long result = 0;
-    size_t offset;
+    size_t offset = 0;
     if (size > word_len) {
         for (offset=0; offset<size; offset+=word_len) {
             result = ptrace(PTRACE_PEEKTEXT, process->pid, address+offset, 0);
@@ -85,7 +85,7 @@ char *readWithPtrace(Process_t *process, void *address, size_t size) {
         result = ptrace(PTRACE_PEEKTEXT, process->pid, address+offset, 0);
         if (result > 0) {
             for (; offset<size; offset++, result_byte++) {
-                buffer[offset] = ((char *)(&result))[result_byte];
+                buffer[offset] = ((uint8_t *)(&result))[result_byte];
             }
         }
     }
@@ -209,7 +209,7 @@ void Process_free(Process_t **process) {
     *process = NULL;
 }
 
-char *Process_get_bytes(Process_t *process, void *address, size_t size) {
+uint8_t *Process_get_bytes(Process_t *process, void *address, size_t size) {
     #ifdef RUN_READ_BENCHMARK
         benchmarkMemFileVSPtrace(process, address, size);
     #endif
