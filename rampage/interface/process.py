@@ -2,31 +2,71 @@ from .memory import MemoryMap
 from .match import MemoryMatch, Matches
 import cscan
 import struct
-import ptrace.debugger
+import ctypes
 import sys
 import time
-from hurry.filesize import size as humansize
 
-class Process:
-    shs = [(1000000000000000, 'PB'), (1000000000000, 'TB'), (1000000000, 'GB'), (1000000, 'MB'), (1000, 'KB'), (1, 'B')]
+class cProcess(ctypes.Structure):
+    _fields_ = [("pid", ctypes.c_uint),
+                 ("flags", ctypes.c_uint),
+                 ("mem", ctypes.c_void_p)]
+
+class cMatchOffsets(ctypes.Structure):
+    _fields_ = [("matchbuffer", ctypes.POINTER(ctypes.c_size_t)),
+                ("size", ctypes.c_size_t)]
+
+class cMatchConditions(ctypes.Structure):
+    _fields_ = [("data", ctypes.c_char_p),
+                 ("data_length", ctypes.c_int),
+                 ("alignment", ctypes.c_int),
+                 ("is_float", ctypes.c_int),
+                 ("floor", ctypes.c_int)]
+
+def human_readable(value, offsets, format_string="{:.3f}{}"):
+    for f, name in offsets:
+        if value > f:
+            return format_string.format(value / f, name)
+
+
+def prep_cscan_types(cscan):
+    cscan.Process_new.argtypes = [ctypes.c_int]
+    cscan.Process_new.restype = ctypes.POINTER(cProcess)
+    cscan.Process_continue.argtypes = [ctypes.POINTER(cProcess)]
+    cscan.Process_continue.restype = None
+
+    cscan.Process_get_bytes.argtypes = [ctypes.POINTER(cProcess), ctypes.c_void_p, ctypes.c_size_t]
+    cscan.Process_get_bytes.restype = ctypes.c_void_p
+
+    cscan.Process_set_word.argtypes = [ctypes.POINTER(cProcess), ctypes.c_void_p, ctypes.c_long]
+    cscan.Process_set_word.restype = None
+
+    cscan.scan.argtypes = [ctypes.c_void_p, ctypes.c_size_t, ctypes.POINTER(cMatchConditions)]
+    cscan.scan.restype = ctypes.POINTER(cMatchOffsets)
+    cscan.filter.argtypes = [ctypes.c_void_p, ctypes.POINTER(cMatchConditions), ctypes.POINTER(cMatchOffsets)]
+    cscan.filter.restype = ctypes.POINTER(cMatchOffsets)
+
+class Process(ctypes.Structure):
+    size_units = [(1000000000000000, 'PB'), (1000000000000, 'TB'), (1000000000, 'GB'), (1000000, 'MB'), (1000, 'KB'), (1, 'B')]
+
     def __init__(self, pid):
-        self.__pid__ = int(pid)
+        cscan = ctypes.cdll.LoadLibrary("cscan/libcscan.so")
+        prep_cscan_types(cscan)
+
+        p = cscan.Process_new(pid)
+        cscan.Process_continue(p)
+
+        self.__memory_map__ = MemoryMap.Load(cscan, p)
         self.__last_scan_value__ = None
-    
-    def attach(self):
-        self.__memory_map__ = MemoryMap.fromFile(f"/proc/{self.__pid__}/maps")
-        print(f"Process has {humansize(self.map.size(), system=self.shs)} of scannable memory")
-        debugger = ptrace.debugger.PtraceDebugger()
-        self.__ptrace__ = debugger.addProcess(self.__pid__, False)
-        self.map.add_debugger(self.__ptrace__)
-        self.__ptrace__.cont()
-    
+        self.__cscan__ = cscan
+        print(f"Process has {human_readable(self.map.size(), Process.size_units)} of scannable memory")
+        
+
     def get_matches(self):
         result = Matches()
         for segment in self.map.segments:
-            if hasattr(segment, '__matches__') and len(segment.__matches__) > 0:
-                for offset, types in segment.__matches__.items():
-                    result.append(MemoryMatch(segment, offset, types, self.__last_scan_value__))
+            if hasattr(segment, '__matches__'):
+                for i in range(segment.__matches__.contents.size):
+                    result.append(MemoryMatch(segment, segment.__matches__.contents.matchbuffer[i], self.__last_scan_value__))
         return result
 
     def reset(self):
@@ -35,7 +75,7 @@ class Process:
                 delattr(segment, '__matches__')
 
     
-    def scan(self, value, memorySegments=None, search_types=['@c', '@B', '@h', '@H', '@i', '@I', '@l', '@L', 'f', 'd'], alignment=4):
+    def scan(self, value, fmt='@i', memorySegments=None, alignment=1):
         """Scan memory segemets for value of the search_type specified.
         Search only for values aligned to alignment byte boundary.
 
@@ -55,40 +95,32 @@ class Process:
         """
         if memorySegments is None:
             memorySegments = self.map.segments
-        
-        values = {}
-        for fmt in search_types:
-            try:
-                values[fmt] = struct.pack(fmt, value)
-            except struct.error:
-                continue
+
+        search_value = struct.pack(fmt, value)
+
+        matchConditions = cMatchConditions(search_value, len(search_value), alignment, 0, 0)
 
         match_count = 0
         bytes_scanned = 0
         has_printed = False
         start_time = time.clock()
         for i, segment in enumerate(memorySegments):
-            try:
-                data = self.__ptrace__.readBytes(segment.start, len(segment))
-            except Exception as e:
-                print(f"Error while reading bytes from {segment}: {segment.path}")
-                print(e)
-                continue
+            data = segment.readBytes()
             if hasattr(segment, '__matches__'):
                 # this is a filter run
-                if len(segment.__matches__) > 0:
-                    segment.__matches__ = cscan.filter(data, values, segment.__matches__)
+                if segment.__matches__.contents.size > 0:
+                    segment.__matches__ = self.__cscan__.filter(data, ctypes.byref(matchConditions), segment.__matches__)
             else:
                 # this is the first time we run, display scan info
                 speed = bytes_scanned / (time.clock() - start_time)
                 if len(memorySegments) != 1: # if there's only one segment we don't have speed info anyway
                     # \r\033[K - return carriage and clear the line
-                    print(f"\r\033[K{i+1}/{len(memorySegments)}: Searching {segment} ... {match_count} matches {humansize(speed, system=self.shs)}/s", end='')
+                    print(f"\r\033[K{i+1}/{len(memorySegments)}: Searching {segment} ... {match_count} matches {human_readable(speed, Process.size_units)}/s", end='')
                     sys.stdout.flush()
                     has_printed = True
-                segment.__matches__ = cscan.scan(data, values, alignment)
+                segment.__matches__ = self.__cscan__.scan(data, len(segment), ctypes.byref(matchConditions))
                 bytes_scanned += len(segment)
-            match_count += len(segment.__matches__)
+            match_count += segment.__matches__.contents.size
         
         if has_printed:
             print()

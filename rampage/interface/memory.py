@@ -47,30 +47,32 @@ class MemorySegment:
     
     def __repr__(self):
         if self.path:
-            return f"<{self.__class__.__name__} {self.path}>"
+            return f"<{self.__class__.__name__}{self.__id__} {self.path}>"
         else:
-            return f"<{self.__class__.__name__} {hex(self.start)}-{hex(self.end)}>"
+            return f"<{self.__class__.__name__}{self.__id__} {hex(self.start)}-{hex(self.end)}>"
     
     @property
     def info(self):
         return f"Segment:\n  {hex(self.start)}-{hex(self.end)}\n  {self.permissions}\n  Offset: {hex(self.offset)}\n  Device {self.dev_major}:{self.dev_minor}\n  Inode: {self.inode}\n  {self.path}"
     
-    def readBytes(self, offset, size):
-        return self.__ptrace__.readBytes(self.start + offset, size)
+    def readBytes(self, offset=None, size=None):
+        if offset is None:
+            offset = self.start
+            if size is None:
+                size = len(self)
+        else:
+            if size is None:
+                size = len(self) - offset
+            offset = self.start + offset
+        return self.__cscan__.Process_get_bytes(self.__cprocess_ptr__, offset, size)
     
-    def writeBytes(self, offset, data, isContinue=True):
-        if not self.__ptrace__.is_stopped:
-            self.__ptrace__.kill(SIGTRAP)
-            self.__ptrace__.waitSignals(SIGTRAP)
-            self.__ptrace__.is_stopped = True
-        result = self.__ptrace__.writeBytes(self.start + offset, data)
-        if isContinue:
-            self.__ptrace__.cont()
-        return result
+    def writeWord(self, offset, data):
+        self.__cscan__.Process_set_word(self.__cprocess_ptr__, self.start+offset, data)
 
 class MemoryMap:
     @classmethod
-    def fromFile(cls, path):
+    def Load(cls, cscan, process_ptr):
+        path = f"/proc/{process_ptr.contents.pid}/maps"
         with open(path, 'r') as f:
             m = MemoryMap()
             for line in f:
@@ -89,6 +91,9 @@ class MemoryMap:
                 entry.dev_minor = int(item2, 10)
                 entry.inode = int(data[4], 10)
                 entry.path = (' '.join(data[5:])).strip()
+                entry.__cscan__ = cscan
+                entry.__cprocess_ptr__ = process_ptr
+                entry.__id__ = len(m)
                 m.add(entry)
             return m
             
@@ -106,10 +111,6 @@ class MemoryMap:
     
     def size(self):
         return sum([len(s) for s in self.segments])
-    
-    def add_debugger(self, ptrace):
-        for segment in self.segments:
-            segment.__ptrace__ = ptrace
     
     def find(self, addressOrPath):
         if isinstance(addressOrPath, str):
@@ -138,6 +139,7 @@ class MemoryMap:
                     break
             if is_ignore:
                 continue
+            segment.__id__ = len(result)
             result.append(segment)
         return result
     

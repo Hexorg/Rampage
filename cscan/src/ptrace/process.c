@@ -59,6 +59,9 @@ uint8_t *readMemFile(Process_t *process, void *address, size_t size) {
             printf("\n");
         }
     }
+    if (fflush(process->mem)) {
+        printf("%s:%d %s() Couldn't flush the mem file\n", __FILE__, __LINE__, __func__);
+    }
     if (fread(buffer, size, 1, process->mem) != 1) {
         printf("%s:%d %s() Couldn't read the whole %ld bytes\n", __FILE__, __LINE__, __func__, size);
     }

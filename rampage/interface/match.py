@@ -1,4 +1,4 @@
-import struct
+import struct, ctypes
 
 class Matches(list):
     def set(self, value):
@@ -13,44 +13,32 @@ class Matches(list):
             match.update()
 
 class MemoryMatch:
-    def __init__(self, segment, offset, typematch, lastValue=None):
+    def __init__(self, segment, offset, lastValue=None):
         self.__segment__ = segment
         self.__offset__ = offset
-        self.__typematch__ = typematch
         self.lastValue = lastValue
     
     def __repr__(self):
-        if self.lastValue is None:
-            return f"<Match {hex(self.__segment__.start + self.__offset__)} {self.__typematch__} in {self.__segment__}>"
-        else:
-            return f"<Match {hex(self.__segment__.start + self.__offset__)} - {self.lastValue} in {self.__segment__}>"
-    
-    @property
-    def type(self):
-        return self.__typematch__
+        return f"<Match {hex(self.__segment__.start + self.__offset__)} - {self.lastValue} in {self.__segment__}>"
     
     @property
     def segment(self):
         return self.__segment__
+    
+    @property
+    def offset(self):
+        return self.__offset__
 
-    def update(self):
-        fmt = list(self.__typematch__)[0]
+    def update(self, fmt='@i'):
         length = struct.calcsize(fmt)
-        data = self.__segment__.readBytes(self.__offset__, length)
-        self.lastValue = struct.unpack(fmt, data)[0]
+        data = self.segment.readBytes(self.offset, length)
+        data = ctypes.cast(data, ctypes.POINTER(ctypes.c_byte * length))
+        self.lastValue = struct.unpack(fmt, bytes(data.contents))[0]
         return self.lastValue
 
-    def set(self, value, isContinue=True):
-        data = None
-
-        for fmt in self.__typematch__:
-            try:
-                data = struct.pack(fmt, value)
-            except struct.error:
-                continue
-            if data is not None: 
-                break
-        if data is None:
-            raise TypeError(f"Can not convert {value} into any matched field types {self.__typematch__}")
-
-        self.__segment__.writeBytes(self.__offset__, data, isContinue)
+    def set(self, value, fmt='@i', isContinue=True):
+        data = struct.pack(fmt, value)
+        whatsThere = self.segment.readBytes(self.offset, 8)
+        whatsThere = bytes(ctypes.cast(whatsThere, ctypes.POINTER(ctypes.c_byte * 8)).contents)
+        data = struct.unpack('@L', data + whatsThere[len(data):])[0]
+        self.segment.writeWord(self.offset, ctypes.c_long(data))

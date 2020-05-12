@@ -75,7 +75,6 @@ MatchedOffsets_t *scan(uint8_t *buffer, size_t size, MatchConditions_t *match) {
                         dlow < *((double *) (buffer+offset)) && dhigh > *((double *) (buffer+offset))
                     )));
 
-
         if (unlikely(isMatched)) {
             matchbuffer[matchbufferpos++] = offset;
         }
