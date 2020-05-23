@@ -43,19 +43,15 @@ MatchedOffsets_t *scan(uint8_t *buffer, size_t size, MatchConditions_t *match) {
             data[i] = 0;
     }
     const uint64_t value = *(uint64_t *) &(data[0]);
-    const float fvalue = *(float *) &(data[0]);
-    const double dvalue = *(double *) &(data[0]);
+    const float fvalue = is_float > 1 ? (float) value : *(float *) &(data[0]);
+    const double dvalue = is_float > 1 ? (double) value : *(double *) &(data[0]);
     float flow=0.0, fhigh=0.0;
     double dlow=0.0, dhigh=0.0;
-    if (match->is_float) {
-        dlow = floor(match->data_length == 8 ? dvalue * match->floor : fvalue * match->floor);
-        dhigh = dlow + 1.0;
-        flow = (float) dlow;
-        fhigh = flow + 1.0;
-        dlow /= match->floor;
-        dhigh /= match->floor;
-        flow /= match->floor;
-        fhigh /= match->floor;
+    if (is_float) {
+        dlow = dvalue - match->precision;
+        dhigh = dvalue + match->precision;
+        flow = fvalue - match->precision;
+        fhigh = fvalue + match->precision;
     }
     #ifdef BENCHMARK_SCANNING
     clock_t scan_time = clock();
@@ -109,14 +105,10 @@ MatchedOffsets_t *filter(uint8_t *buffer, MatchConditions_t *match, MatchedOffse
     float flow=0.0, fhigh=0.0;
     double dlow=0.0, dhigh=0.0;
     if (match->is_float) {
-        dlow = floor(match->data_length == 8 ? dvalue * match->floor : fvalue * match->floor);
-        dhigh = dlow + 1.0;
-        flow = (float) dlow;
-        fhigh = flow + 1.0;
-        dlow /= match->floor;
-        dhigh /= match->floor;
-        flow /= match->floor;
-        fhigh /= match->floor;
+        dlow = dvalue - match->precision;
+        dhigh = dvalue + match->precision;
+        flow = fvalue - match->precision;
+        fhigh = fvalue + match->precision;
     }
 
     size_t offset;
@@ -142,4 +134,8 @@ MatchedOffsets_t *filter(uint8_t *buffer, MatchConditions_t *match, MatchedOffse
     }
 
     return trim_matchbuffer(matchbuffer, matchbufferpos);  
+}
+
+void free_matched_offsets(MatchedOffsets_t *data) {
+    free(data);
 }

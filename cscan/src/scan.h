@@ -8,7 +8,7 @@ typedef struct MatchConditions_s {
     int data_length;
     int alignment;
     int is_float;
-    int floor;
+    float precision;
 } MatchConditions_t;
 
 typedef struct MatchedOffsets_s {

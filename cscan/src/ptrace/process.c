@@ -1,8 +1,9 @@
 #include <stdlib.h>
 #include <stdio.h>
-
+#include <unistd.h>
 #include <sys/ptrace.h>
 #include <sys/wait.h>
+#include <sys/syscall.h>
 #include <bits/waitflags.h>
 #include <signal.h>
 #include <string.h>
@@ -32,8 +33,8 @@ void onStatusChange(Process_t *process, int status) {
     }
     if (WIFSIGNALED(status)) {
         // Process received a signal
-        int signal = WTERMSIG(status);
-        printf("Process %d received a signal %d: %s\n", process->pid, signal, strsignal(signal));
+        //int signal = WTERMSIG(status);
+        //printf("Process %d received a signal %d: %s\n", process->pid, signal, strsignal(signal));
         #ifdef WCOREDUMP
             if (WCOREDUMP(status)) {
                 // Process crashed
@@ -44,8 +45,12 @@ void onStatusChange(Process_t *process, int status) {
     if (WIFSTOPPED(status)) {
         // Process stopped because of a signal
         int signal = WSTOPSIG(status);
-        printf("Process %d stopped with a signal %d: %s\n", process->pid, signal, strsignal(signal));
-        SETSTOPPED(process);
+        //printf("Process %d stopped with a signal %d: %s\n", process->pid, signal, strsignal(signal));
+		if (signal == SIGSTOP || signal == SIGTRAP) {
+	        SETSTOPPED(process);
+		} else {
+            printf("I don't know if this is a stopped state. Not setting stopped flag\n");
+        }
     }
 }
 
@@ -124,7 +129,6 @@ Process_t *Process_new(int pid) {
     result->pid = pid;
     result->flags = 0;
     SETRUNNING(result);
-    Process_attach(result);
     char path[64];
     sprintf(path, "/proc/%d/mem", pid);
     result->mem = fopen(path, "rb");
@@ -135,20 +139,21 @@ void Process_attach(Process_t *process) {
     if (ISATTACHED(process)) {
         return;
     }
-    int result = ptrace(PTRACE_ATTACH, process->pid, 0, 0);
-    
-    if (result == -1) {
+    if (-1 == ptrace(PTRACE_ATTACH, process->pid, 0, 0)) {
         printf("%s:%d %s(): ptrace error %d: %s\n", __FILE__, __LINE__, __func__, errno, strerror(errno));
+    } else {
+        WAIT_FOR_SIGNAL(process, SIGTRAP | SIGSTOP);
+        SETATTACHED(process);
     }
-
-    WAIT_FOR_SIGNAL(process, SIGTRAP | SIGSTOP);
-    SETATTACHED(process);
 }
 
 void Process_detach(Process_t *process) {
-    int result = ptrace(PTRACE_DETACH, process->pid, 0, 0);
-    if (result == -1) {
-        printf("%s:%d %s(): ptrace error %d: %s\n", __FILE__, __LINE__, __func__, errno, strerror(errno));
+    if (ISATTACHED(process)) {
+        if (-1 == ptrace(PTRACE_DETACH, process->pid, 0, 0)) {
+            printf("%s:%d %s(): ptrace error %d: %s\n", __FILE__, __LINE__, __func__, errno, strerror(errno));
+        } else {
+            SETDETTACHED(process);
+        }
     }
 }
 
@@ -161,45 +166,48 @@ int Process_wait(Process_t *process, int is_blocking) {
     pid_t r = waitpid(process->pid, &status, options);
     if (r != process->pid && is_blocking) {
         printf("%s:%d %s(): waitpid error %d: %s\n", __FILE__, __LINE__, __func__, errno, strerror(errno));
+    } else {
+        onStatusChange(process, status);
     }
-    onStatusChange(process, status);
     return status;
 }
 
-void Process_stop(Process_t *process) {
-    kill(process->pid, SIGTRAP);
-    WAIT_FOR_SIGNAL(process, SIGSTOP | SIGTRAP);
-}
+// void Process_stop(Process_t *process) {
+//     printf("Sending signal SIGTRAP to process %d\n", process->pid);
+//     kill(process->pid, SIGSTOP);
+//     WAIT_FOR_SIGNAL(process, SIGSTOP | SIGTRAP);
+// }
 
-void Process_continue(Process_t *process) {
-    const int signum = 0; // leaving this here in case I need to continue with a signal later
-    if (!ISRUNNING(process)) {
-        ptrace(PTRACE_CONT, process->pid, 0, signum);
-        process->flags |= RUNNING;
-    }
+// void Process_continue(Process_t *process) {
+//     const int signum = 0; // leaving this here in case I need to continue with a signal later
+//     if (!ISRUNNING(process)) {
+//         if (-1 == ptrace(PTRACE_CONT, process->pid, 0, signum)) {
+//             printf("%s:%d %s(): ptrace error %d: %s\n", __FILE__, __LINE__, __func__, errno, strerror(errno));
+//         } else {
+//             SETRUNNING(process);
+//             printf("Stopped process %d resumed\n", process->pid);
+//         }
+//     }
     
-}
+// }
 
 long Process_get_word(Process_t *process, void *address) {
+    Process_attach(process);
     long result = ptrace(PTRACE_PEEKTEXT, process->pid, address, 0);
     if (result == -1) {
         printf("%s:%d %s(): ptrace error %d: %s\n", __FILE__, __LINE__, __func__, errno, strerror(errno));
     }
+    Process_detach(process);
     return result;
 }
 
 void Process_set_word(Process_t *process, void *address, long data) {
-    int was_running = ISRUNNING(process);
-    if (was_running) {
-        Process_stop(process);
-    }
+    Process_attach(process);
     int result = ptrace(PTRACE_POKETEXT, process->pid, address, data);
     if (result == -1) {
-        printf("%s:%d %s(): ptrace error %d: %s\n", __FILE__, __LINE__, __func__, errno, strerror(errno));
+        printf("%s:%d %s(): ptrace(POKETEXT, %d, %lx, %ld) error %d: %s\n", __FILE__, __LINE__, __func__, process->pid, (unsigned long) address, data, errno, strerror(errno));
     }
-    if (was_running) {
-        Process_continue(process);
-    }
+    Process_detach(process);
 }
 
 void Process_free(Process_t **process) {
@@ -213,13 +221,21 @@ void Process_free(Process_t **process) {
 }
 
 uint8_t *Process_get_bytes(Process_t *process, void *address, size_t size) {
+    Process_attach(process);
     #ifdef RUN_READ_BENCHMARK
         benchmarkMemFileVSPtrace(process, address, size);
     #endif
+    uint8_t *result;
     #ifdef READ_WITH_PTRACE
         // this is about 300 times slower
-        return readWithPtrace(process, address, size);
+        result = readWithPtrace(process, address, size);
     #else
-        return readMemFile(process, address, size);
+        result = readMemFile(process, address, size);
     #endif
+    Process_detach(process);
+    return result;
+}
+
+void Process_free_bytes(uint8_t *bytes) {
+    free(bytes);
 }

@@ -5,13 +5,13 @@ LDFLAGS = -lm
 CFLAGS = -O2
 
 .PHONY: all
-all: libcscan.so test
+all: librampage.so test
 
-libcscan.so: $(obj)
+librampage.so: $(obj)
 	$(CC) -shared -o $@ $^ $(LDFLAGS)
 
-test: libcscan.so src/standalone.o
-	$(CC) $(CFLAGS) -L . -lcscan -o test src/standalone.o 
+test: librampage.so src/standalone.o
+	$(CC) $(CFLAGS) -L . -lrampage -o test src/standalone.o 
 
 %.o: %.c
 	$(CC) -Wall -Werror -fpic $(CFLAGS) -o $@ -c $<
@@ -19,4 +19,4 @@ test: libcscan.so src/standalone.o
 
 .PHONY: clean
 clean:
-	rm -f $(obj) libcscan.so test
+	rm -f $(obj) librampage.so test
