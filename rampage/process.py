@@ -1,15 +1,26 @@
 from .memory import MemoryMap
 from .match import MemoryMatch, Matches
 
-
+import subprocess
 import struct
 import time
 import math
 from .pretty_print import Logger, human_readable, MEMORY_UNITS
 
-
-
 class Process:
+    '''
+    Represents the game process and lets you scan for variable matches.
+    '''
+
+    @staticmethod
+    def find(name):
+        '''
+        Helper method to search for running processes by partial name
+
+        Prints pid numers and process full names to standard output
+        '''
+        subprocess.call(['pgrep', '-li', name])
+
     def __init__(self, pid):
         self.pid = pid
         self.map = MemoryMap(pid)
@@ -18,6 +29,9 @@ class Process:
         
     
     def __value_to_fmt__(self, value):
+        '''
+        Helper method to convert scanning value to a format used by python struct package
+        '''
         if isinstance(value, float):
             # TODO: Not sure how to differentiate between double and float
             return 'f'
@@ -25,25 +39,32 @@ class Process:
             is_negative = False
             if value < 0:
                 is_negative = True
-            if math.abs(value) < 0x100:
+            if abs(value) < 0x100:
                 if not is_negative:
                     return '@B'
-                if is_negative and math.abs(value) < 0x80:
+                if is_negative and abs(value) < 0x80:
                     return '@b'
-            elif math.abs(value) < 0x10000:
+            elif abs(value) < 0x10000:
                 if not is_negative:
                     return '@H'
-                if is_negative and math.abs(value) < 0x8000:
+                if is_negative and abs(value) < 0x8000:
                     return 'h'
-            elif math.abs(value) < 0x1000000000000:
+            elif abs(value) < 0x1000000000000:
                 if not is_negative:
                     return '@I'
-                if is_negative and math.abs(value) < 0x80000000:
+                if is_negative and abs(value) < 0x80000000:
                     return '@i'
             else:
                 return '@L' if is_negative else '@l'
 
     def get_matches(self):
+        '''
+        Tally all of the matches up into a single usable list structure. Recommended not
+        to call this until you get only 1 match.
+
+        Returns:
+            Matches object (a child of list)
+        '''
         result = Matches()
         for segment in self.map.segments:
             if len(segment.matches) > 0:
@@ -54,37 +75,47 @@ class Process:
         return result
 
     def reset(self):
+        '''
+        Clear all of the match data. Call this when you want to start searching for a new value.
+        '''
         for segment in self.map.segments:
             segment.matches = None
     
     @property
     def size(self):
+        '''
+        Size of scannable memory in bytes.
+        '''
         self.map.update()
         return sum([len(s) for s in self.map.segments])
     
     @property
     def size_pp(self):
+        '''
+        Human-readable string representation of scannable memory size.
+        '''
         return human_readable(self.size, MEMORY_UNITS)
 
-    def scan(self, value, scan_both=True, memory_segments=None, alignment=4, precision=1):
-        """
+    def scan(self, value, precision=1, scan_both=True, memory_segments=None, alignment=4):
+        '''
         Scan this process for the value.
 
         Parameters:
             value (int or float): The value to be searched, required.
-            scan_both (bool): Search for both floats and integers when value is an integer.
-                Doesn't matter when value is a float.
-            memory_segments (list of MemorySegment): only scan these segments
-            alignment (int) - Only search data aligned to this. Higher values increase 
-                search speed because we skip non-aligned offsets, but we can miss values
-                if the process is not using aligned data, which is rare these days.
             precision (int or float): If searching for a float, consider a match anything between
                 value-precision and value+precision.
+            scan_both (bool): Search for both floats and integers when value is an integer.
+                Doesn't matter when value is a float.
+            memory_segments (list of MemorySegment): only scan these segments. Leave default if unsure.
+            alignment (int) - Only search data aligned to this. Higher values increase 
+                search speed because we skip non-aligned offsets, but we can miss values
+                if the process is not using aligned data, which is rare these days. Leave default
+                if unsure.
 
         Returns:
             Count of matches found
 
-        """
+        '''
         
         if memory_segments is None:
             self.map.update()

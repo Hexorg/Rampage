@@ -16,6 +16,9 @@ class Permission(Enum):
     SHARED = 's'
 
 class MemorySegment:
+    '''
+    A single, continious memory segment
+    '''
     def __init__(self, cscan):
         self.start = 0
         self.end = 0
@@ -93,15 +96,6 @@ class MemorySegment:
         if self.__matches__ is not None:
             self.cscan.free_matched_offsets(self.__matches__)
         self.__matches__ = value
-        if value is not None:
-            maxlen = len(self)
-            freed_matches = 0
-            for i in range(value.contents.size):
-                if value.contents.matchbuffer[i] > maxlen:
-                    freed_matches += 1
-                    value.contents.matchbuffer[i] = 0
-            if freed_matches > 0:
-                self.log.interact(f'{freed_matches} matches are no longer allocated')
                     
     
     def scan(self, data, alignment, is_float, precision):
@@ -126,6 +120,11 @@ class MemorySegment:
 
 
 class MemoryMap:
+    '''
+    Each process in Linux does not have raw access to RAM, but uses memory mapping 
+    provided by Linux kernel. The kernel creates /proc/<pid>/maps file for each process and 
+    this class checks what addresses are allocated by that process.
+    '''
     def __procmaps_path__(self):
         return f"/proc/{self.pid}/maps"
     
@@ -159,6 +158,9 @@ class MemoryMap:
         return len(self.__segments__)
     
     def update(self):
+        '''
+        Re-parse the file
+        '''
         with open(self.__procmaps_path__(), 'r') as f:
             for line in f:
                 entry = self.__parse_line__(line)
@@ -196,9 +198,21 @@ class MemoryMap:
                 
     
     def size(self):
+        '''
+        Returns:
+            Size of scannable memory
+        '''
         return sum([len(s) for s in self.segments])
     
     def find(self, addressOrPath):
+        '''
+        Find the segment of memory that maps a given address, or the first segment that 
+        maps a given path
+
+        Parameters:
+            addressOrPath (int or string) - address allocated by the process, or a path to
+                file mapped by the process.
+        '''
         self.update()
         if isinstance(addressOrPath, str):
             for segment in self.segments:
@@ -213,6 +227,9 @@ class MemoryMap:
     
     @property
     def segments(self):
+        '''
+        Returns segments that are writable and not device files
+        '''
         result = []
         for segment in self.__segments__:
             if self.__ignore_paths__.match(segment.path):

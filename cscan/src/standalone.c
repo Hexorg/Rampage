@@ -5,8 +5,10 @@
 
 int main(int argc, char *argv[]) {
     int pid = atoi(argv[1]);
+    void *block_start = (void *)0x7fff61a43000;
+    void *block_end = (void *)0x7fff61a64000;
     Process_t* process = Process_new(pid);
-    uint8_t *data = Process_get_bytes(process, (void *)0x7ffbfffdd000, 135168);
+    uint8_t *data = Process_get_bytes(process, block_start, block_end-block_start);
 
     int value = 12;
     MatchConditions_t match;
@@ -14,7 +16,7 @@ int main(int argc, char *argv[]) {
     match.data_length = 4;
     match.alignment = 1;
     match.is_float = 0;
-    match.floor = 0;
+    match.precision = 1;
     MatchedOffsets_t *result = scan(data, 135168, &match);
     printf("Found %ld matches\n", result->size);
     for (size_t i=0; i<result->size; i++) {

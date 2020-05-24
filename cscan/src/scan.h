@@ -17,6 +17,7 @@ typedef struct MatchedOffsets_s {
 } MatchedOffsets_t;
 
 extern MatchedOffsets_t *scan(uint8_t *buffer, size_t size, MatchConditions_t *match);
-extern MatchedOffsets_t *filter(uint8_t *buffer, MatchConditions_t *match, MatchedOffsets_t *matches);
+extern MatchedOffsets_t *filter(uint8_t *buffer, size_t size, MatchConditions_t *match, MatchedOffsets_t *matches);
+extern void free_matched_offsets(MatchedOffsets_t *data);
 
 #endif

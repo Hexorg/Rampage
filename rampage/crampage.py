@@ -57,7 +57,7 @@ class CScan(ctypes.CDLL):
 
         self.scan.argtypes = [ctypes.c_void_p, ctypes.c_size_t, ctypes.POINTER(cMatchConditions_s)]
         self.scan.restype = ctypes.POINTER(cMatchOffsets_s)
-        self.filter.argtypes = [ctypes.c_void_p, ctypes.POINTER(cMatchConditions_s), ctypes.POINTER(cMatchOffsets_s)]
+        self.filter.argtypes = [ctypes.c_void_p, ctypes.c_size_t, ctypes.POINTER(cMatchConditions_s), ctypes.POINTER(cMatchOffsets_s)]
         self.filter.restype = ctypes.POINTER(cMatchOffsets_s)
         self.free_matched_offsets.argtypes = [ctypes.POINTER(cMatchOffsets_s)]
         self.free_matched_offsets.restype = None
@@ -92,7 +92,7 @@ class CScan(ctypes.CDLL):
     def run_filter(self, address, size, search_value, matches, alignment, is_float, precision):
         data_ptr = self.Process_get_bytes(self.__process_ptr__, address, size)
         matchConditions = cMatchConditions_s(search_value, len(search_value), alignment, is_float, precision)
-        result = self.filter(data_ptr, ctypes.byref(matchConditions), matches)
+        result = self.filter(data_ptr, size, ctypes.byref(matchConditions), matches)
         self.Process_free_bytes(data_ptr)
         return result
 

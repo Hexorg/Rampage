@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 
-#define VAR_TYPE unsigned int
+#define VAR_TYPE int
 #define VAR_TYPE_FORMAT " Value is %d"
 
 int main(int argc, char* argv[], char* envp[]) {
@@ -14,7 +14,7 @@ int main(int argc, char* argv[], char* envp[]) {
 	int is_first_time = 1;
 	while (variable != 0xdeadbeef) {
 		if (!is_first_time) {
-			variable = (VAR_TYPE) random();
+			variable = (VAR_TYPE) random() / RAND_MAX;
 		} else {
 			is_first_time = 0;
 		}

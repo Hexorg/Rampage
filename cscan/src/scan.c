@@ -83,10 +83,10 @@ MatchedOffsets_t *scan(uint8_t *buffer, size_t size, MatchConditions_t *match) {
     return trim_matchbuffer(matchbuffer, matchbufferpos);  
 }
 
-MatchedOffsets_t *filter(uint8_t *buffer, MatchConditions_t *match, MatchedOffsets_t *matches) {
+MatchedOffsets_t *filter(uint8_t *buffer, size_t size, MatchConditions_t *match, MatchedOffsets_t *matches) {
     int isMatched;
     const int data_length = match->data_length;
-    const size_t size = matches->size;
+    const size_t match_count = matches->size;
     const int is_float = match->is_float;
 
     size_t *matchbuffer = malloc(sizeof(size_t) * matches->size) ;
@@ -112,8 +112,11 @@ MatchedOffsets_t *filter(uint8_t *buffer, MatchConditions_t *match, MatchedOffse
     }
 
     size_t offset;
-    for (size_t i=0; i<size; i++) {
+    for (size_t i=0; i<match_count; i++) {
         offset = matches->matchbuffer[i];
+        if (unlikely(offset >= size)) {
+            continue;
+        }
         isMatched = ((
                         (*((uint64_t *) (buffer+offset)) == value) ||
                         (data_length <= 4 && *((uint32_t *) (buffer+offset)) == (uint32_t) value) ||

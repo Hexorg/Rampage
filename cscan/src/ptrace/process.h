@@ -19,14 +19,9 @@ typedef enum ProcessFlags_s {
     EXITED = 4
 } ProcessFlag_t;
 
-#ifdef SYS_gettid
 #define ISATTACHED(process) (process->flags & ATTACHED)
-#define SETATTACHED(process) do { process->flags |= ATTACHED; process->attached_pid = getpid(); process->attached_tid = syscall(SYS_gettid); } while(0)
-#define SETDETTACHED(process) process->flags &= ~ATTACHED
-#define ISATTACHEDPID(process) (process->attached_pid == getpid() && process->attached_tid == syscall(SYS_gettid))
-#else
-#error "This library requires use of SYS_gettid syscall. It's unavailable on this system"
-#endif
+#define SETATTACHED(process) (process->flags |= ATTACHED)
+#define SETDETTACHED(process) (process->flags &= ~ATTACHED)
 
 #define ISRUNNING(process) (process->flags & RUNNING)
 #define SETRUNNING(process) (process->flags |= RUNNING)
