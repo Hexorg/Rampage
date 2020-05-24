@@ -31,9 +31,15 @@ class MatchManager(threading.Thread):
     A class to manage matches that you want to keep.
     '''
     def __init__(self):
+        '''
+        MatchManager constructor. Starts the thread that does all the freezing, 
+        so you can keep using this shell for other tasks. Don't forget to call
+        mm.join() before exiting rampage!
+        '''
         super().__init__()
         self.__matches__ = {}
         self.__frozen__ = {}
+        self.__keep_going__ = True
         self.start()
     
     def __repr__(self):
@@ -146,8 +152,7 @@ class MatchManager(threading.Thread):
         This routine runs in a separate thread and performs the actual freezing of values.
         You don't need to call this. Separate thread is started for you.
         '''
-        isInterrupted = False
-        while not isInterrupted:
+        while self.__keep_going__:
             for key in self.__frozen__:
                 value, condition = self.__frozen__[key]
                 is_set = True
@@ -158,7 +163,11 @@ class MatchManager(threading.Thread):
             try:
                 time.sleep(1)
             except KeyboardInterrupt as e:
-                isInterrupted = True
+                self.__keep_going__ = False
+    
+    def join(self):
+        self.__keep_going__ = False
+        super().join()
     
 
 
